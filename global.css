@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-orange: #ff7f24;
+  --primary-orange-light: #ffa07a;
+  --primary-orange-dark: #e45c00;
+  --secondary-orange: #ffb74d;
+  --accent-orange: #ffcc80;
+  --background-light: #fff8f0;
+  --text-dark: #333333;
+}
