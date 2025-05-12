@@ -4,8 +4,9 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   MaterialCategory,
   MaterialType,
@@ -18,6 +19,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useState, useMemo } from "react";
 import { useMaterials } from "@/hooks/useMaterials";
+import { supabase } from "@/utils/supabase";
+import { Session } from "@supabase/supabase-js";
 
 // Modern gradient combinations for each category
 const categoryGradients = {
@@ -98,6 +101,14 @@ const CategoryDetails = () => {
   // Get class options for the current category
   const classOptions = useMemo(() => getClassOptions(categoryId), [categoryId]);
 
+  const [session, setSession] = useState<Session | null>(null);
+
+  useFocusEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+  });
+
   // Set default selected class when category changes
   React.useEffect(() => {
     if (classOptions.length > 0) {
@@ -112,11 +123,44 @@ const CategoryDetails = () => {
     materials: filteredMaterials,
     loading,
     error,
+    deleteMaterial,
   } = useMaterials({
     category: categoryId,
     type: selectedTab,
     classNumber: selectedClass,
   });
+
+  // Handle material deletion
+  const handleDeleteMaterial = (materialId: string, materialName: string) => {
+    if (!session) {
+      Alert.alert(
+        "Authentication Required",
+        "You must be logged in to delete materials."
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Confirm Deletion",
+      `Are you sure you want to delete "${materialName}"?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const result = await deleteMaterial(materialId);
+            if (!result.success) {
+              Alert.alert("Error", result.error || "Failed to delete material");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Group materials by chapter
   const groupedMaterials = useMemo(() => {
@@ -279,24 +323,44 @@ const CategoryDetails = () => {
                             </View>
                           </View>
                         </View>
-                        <View
-                          className="w-8 h-8 rounded-full items-center justify-center"
-                          style={{
-                            backgroundColor:
-                              fileTypeIcons[material.file_type].color + "20",
-                          }}
-                        >
-                          <MaterialCommunityIcons
-                            name={
-                              material.file_type === FileType.PDF
-                                ? "file-pdf-box"
-                                : material.file_type === FileType.VIDEO
-                                ? "play-circle"
-                                : "image"
-                            }
-                            size={20}
-                            color={fileTypeIcons[material.file_type].color}
-                          />
+                        <View className="flex-row items-center">
+                          {session && (
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleDeleteMaterial(
+                                  material.id,
+                                  material.name
+                                );
+                              }}
+                              className="mr-2 p-2"
+                            >
+                              <MaterialIcons
+                                name="delete"
+                                size={20}
+                                color="#f44336"
+                              />
+                            </TouchableOpacity>
+                          )}
+                          <View
+                            className="w-8 h-8 rounded-full items-center justify-center"
+                            style={{
+                              backgroundColor:
+                                fileTypeIcons[material.file_type].color + "20",
+                            }}
+                          >
+                            <MaterialCommunityIcons
+                              name={
+                                material.file_type === FileType.PDF
+                                  ? "file-pdf-box"
+                                  : material.file_type === FileType.VIDEO
+                                  ? "play-circle"
+                                  : "image"
+                              }
+                              size={20}
+                              color={fileTypeIcons[material.file_type].color}
+                            />
+                          </View>
                         </View>
                       </View>
                     </TouchableOpacity>

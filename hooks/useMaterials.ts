@@ -67,5 +67,40 @@ export function useMaterials({
     fetchMaterials();
   }, [category, type, classNumber]);
 
-  return { materials, loading, error };
+  const deleteMaterial = async (materialId: string) => {
+    try {
+      // First check if the user is authenticated
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error("You must be logged in to delete materials");
+      }
+
+      // Delete the material
+      const { error, status } = await supabase
+        .from("materials")
+        .delete()
+        .eq("id", Number(materialId));
+
+      console.log("Delete response:", { error, status });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Update the local state to remove the deleted material
+      setMaterials(
+        materials.filter((material) => material.id !== Number(materialId))
+      );
+
+      return { success: true };
+    } catch (err) {
+      console.error("Error deleting material:", err);
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error occurred",
+      };
+    }
+  };
+
+  return { materials, loading, error, deleteMaterial };
 }
